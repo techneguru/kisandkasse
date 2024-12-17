@@ -1,0 +1,16 @@
+apiVersion: v2
+name: code-server
+description: A Helm chart for Code-Server
+type: application
+version: 1.0.0
+appVersion: "4.14.1"
+
+service:
+  type: ClusterIP
+  port: 8080
+
+deployment:
+  replicas: 1
+  image: codercom/code-server:latest
+  env:
+    PASSWORD: "codeadmin" # Sett ønsket passord

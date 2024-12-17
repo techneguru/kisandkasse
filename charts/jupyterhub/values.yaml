@@ -1,0 +1,14 @@
+apiVersion: v2
+name: jupyterhub
+description: A Helm chart for JupyterHub
+type: application
+version: 1.0.0
+appVersion: "latest"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+deployment:
+  replicas: 1
+  image: jupyterhub/jupyterhub:latest
