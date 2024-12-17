@@ -61,13 +61,33 @@ echo "/mnt/nfs-share *(rw,sync,no_subtree_check)" | sudo tee /etc/exports
 sudo exportfs -a
 sudo systemctl restart nfs-kernel-server
 
+echo "Installerer Grafana og Prometheus for overvåkning..."
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+helm install prometheus grafana/kube-prometheus-stack --namespace monitoring --create-namespace
+
+echo "Installerer NVIDIA DCGM Exporter for GPU-overvåkning..."
+helm repo add nvidia https://nvidia.github.io/dcgm-exporter
+helm repo update
+helm install nvidia-dcgm-exporter nvidia/dcgm-exporter --namespace monitoring
+
+echo "Installerer Loki for sentralisert logging..."
+helm repo add grafana https://grafana.github.io/helm-charts
+helm install loki grafana/loki-stack --namespace logging --create-namespace
+
 echo "Installerer Flowise..."
-docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest
+sudo docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest
 
 echo "Deploying tjenester med Helm..."
 git clone https://github.com/techneguru/kisandkasse.git /tmp/kisandkasse
 helm install code-server /tmp/kisandkasse/charts/code-server --namespace default
 helm install ollama /tmp/kisandkasse/charts/ollama --namespace default
 helm install jupyterhub /tmp/kisandkasse/charts/jupyterhub --namespace default
+
+echo "Setter opp grunnleggende RBAC for utviklere..."
+for i in {1..3}; do
+    kubectl create namespace utvikler$i
+    kubectl create rolebinding utvikler${i}-role --role=edit --user=utvikler$i --namespace=utvikler$i
+done
 
 echo "Systemoppsett fullført. Start maskinen på nytt for å aktivere alle endringer."
