@@ -14,11 +14,12 @@ curl -fsSL https://get.docker.com | bash
 sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
-# Korrigerer Kubernetes repository
-echo "Legger til riktig Kubernetes repository..."
-sudo rm -f /etc/apt/sources.list.d/kubernetes.list
-sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-echo "deb https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# Korrigerer Kubernetes repository for Ubuntu 24.04 (midlertidig med 'jammy')
+echo "Legger til Kubernetes repository..."
+sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
 # Installerer Kubernetes-pakker
 echo "Installerer kubeadm, kubelet og kubectl..."
