@@ -108,6 +108,12 @@ helm install code-server /tmp/kisandkasse/charts/code-server --namespace default
 helm install ollama /tmp/kisandkasse/charts/ollama --namespace default
 helm install jupyterhub /tmp/kisandkasse/charts/jupyterhub --namespace default
 
+# Installer LangFlow
+echo "=== Installerer LangFlow... ==="
+helm repo add langflow https://langflow.github.io/helm-charts
+helm repo update
+helm install langflow langflow/langflow --namespace default
+
 # Lokal ingress-konfigurasjon
 echo "Setter opp Ingress for tjenester..."
 cat <<EOF | kubectl apply -f -
