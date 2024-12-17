@@ -14,16 +14,18 @@ curl -fsSL https://get.docker.com | bash
 sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
-# Kubernetes-installasjon via Snap
-echo "Installerer Kubernetes via Snap fordi apt-installasjonen feilet tidligere..."
-sudo snap install kubeadm --classic
-sudo snap install kubectl --classic
-sudo snap install kubelet --classic
+# Korrigerer Kubernetes repository
+echo "Legger til riktig Kubernetes repository..."
+sudo rm -f /etc/apt/sources.list.d/kubernetes.list
+sudo curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 
-echo "Verifiserer Kubernetes Snap-installasjon..."
-kubeadm version
-kubectl version --client
-sudo systemctl status snap.kubelet.daemon
+# Installerer Kubernetes-pakker
+echo "Installerer kubeadm, kubelet og kubectl..."
+sudo apt update
+sudo apt install -y kubeadm kubelet kubectl
+sudo apt-mark hold kubeadm kubelet kubectl
+sudo systemctl enable kubelet
 
 # NVIDIA-driver og toolkit
 echo "Installerer NVIDIA-driver og toolkit..."
