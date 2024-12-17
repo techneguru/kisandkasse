@@ -1,14 +1,50 @@
-apiVersion: v2
-name: jupyterhub
-description: A Helm chart for JupyterHub
-type: application
-version: 1.0.0
-appVersion: "latest"
-
+# JupyterHub Service Configuration
 service:
+  name: jupyterhub
   type: ClusterIP
   port: 8000
 
-deployment:
-  replicas: 1
-  image: jupyterhub/jupyterhub:latest
+# Deployment Configuration
+replicaCount: 1
+
+image:
+  repository: jupyterhub/jupyterhub
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Resource Limits and Requests
+resources:
+  limits:
+    cpu: "2000m"
+    memory: "2048Mi"
+  requests:
+    cpu: "1000m"
+    memory: "1024Mi"
+
+# Persistent Storage Configuration
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  storageClassName: "standard"
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  host: localhost
+  path: /jupyterhub
+
+# Environment Variables
+env:
+  - name: JUPYTERHUB_PORT
+    value: "8000"
+  - name: JUPYTERHUB_CONFIG
+    value: "/srv/jupyterhub/jupyterhub_config.py"
+
+# Volume Mounts
+volumeMounts:
+  - name: jupyterhub-data
+    mountPath: /srv/jupyterhub

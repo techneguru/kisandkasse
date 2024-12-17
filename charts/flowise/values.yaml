@@ -1,32 +1,32 @@
-# JupyterHub Service Configuration
+# Flowise Service Configuration
 service:
-  name: jupyterhub
+  name: flowise
   type: ClusterIP
-  port: 8000
+  port: 3000
 
 # Deployment Configuration
 replicaCount: 1
 
 image:
-  repository: jupyterhub/jupyterhub
+  repository: flowiseai/flowise
   tag: latest
   pullPolicy: IfNotPresent
 
 # Resource Limits and Requests
 resources:
   limits:
-    cpu: "2000m"
-    memory: "2048Mi"
-  requests:
     cpu: "1000m"
     memory: "1024Mi"
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
 
 # Persistent Storage Configuration
 persistence:
   enabled: true
   accessModes:
     - ReadWriteOnce
-  size: 10Gi
+  size: 5Gi
   storageClassName: "standard"
 
 # Ingress Configuration
@@ -35,16 +35,16 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   host: localhost
-  path: /jupyterhub
+  path: /flowise
 
 # Environment Variables
 env:
-  - name: JUPYTERHUB_PORT
-    value: "8000"
-  - name: JUPYTERHUB_CONFIG
-    value: "/srv/jupyterhub/jupyterhub_config.py"
+  - name: PORT
+    value: "3000"
+  - name: FLOWISE_STORAGE_PATH
+    value: "/data"
 
 # Volume Mounts
 volumeMounts:
-  - name: jupyterhub-data
-    mountPath: /srv/jupyterhub
+  - name: flowise-data
+    mountPath: /data

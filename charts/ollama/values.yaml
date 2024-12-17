@@ -1,14 +1,48 @@
-apiVersion: v2
-name: ollama
-description: A Helm chart for Ollama
-type: application
-version: 1.0.0
-appVersion: "latest"
-
+# Ollama Service Configuration
 service:
+  name: ollama
   type: ClusterIP
   port: 11434
 
-deployment:
-  replicas: 1
-  image: ollama/ollama:latest
+# Deployment Configuration
+replicaCount: 1
+
+image:
+  repository: ollama/ollama
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Resource Limits and Requests
+resources:
+  limits:
+    cpu: "2000m"
+    memory: "2048Mi"
+  requests:
+    cpu: "1000m"
+    memory: "1024Mi"
+
+# Persistent Storage Configuration
+persistence:
+  enabled: true
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  storageClassName: "standard"
+
+# Ingress Configuration
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  host: localhost
+  path: /ollama
+
+# Environment Variables
+env:
+  - name: OLLAMA_PORT
+    value: "11434"
+
+# Volume Mounts
+volumeMounts:
+  - name: ollama-data
+    mountPath: /root/.ollama

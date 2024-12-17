@@ -15,14 +15,15 @@ sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
 # Kubernetes-installasjon via Snap
-echo "Installerer Kubernetes via Snap..."
+echo "Installerer Kubernetes via Snap fordi apt-installasjonen feilet tidligere..."
 sudo snap install kubeadm --classic
 sudo snap install kubectl --classic
 sudo snap install kubelet --classic
 
-echo "Verifiserer Kubernetes..."
+echo "Verifiserer Kubernetes Snap-installasjon..."
 kubeadm version
 kubectl version --client
+sudo systemctl status snap.kubelet.daemon
 
 # NVIDIA-driver og toolkit
 echo "Installerer NVIDIA-driver og toolkit..."
@@ -152,5 +153,8 @@ EOF
 
 echo "Installerer Flowise..."
 sudo docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest
+
+echo "Validerer Kubernetes pods..."
+kubectl get pods --all-namespaces
 
 echo "Systemoppsett fullført. Start maskinen på nytt for å aktivere alle endringer."

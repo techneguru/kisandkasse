@@ -1,6 +1,6 @@
-# JupyterHub Service Configuration
+# ChromaDB Service Configuration
 service:
-  name: jupyterhub
+  name: chromadb
   type: ClusterIP
   port: 8000
 
@@ -8,25 +8,25 @@ service:
 replicaCount: 1
 
 image:
-  repository: jupyterhub/jupyterhub
+  repository: ghcr.io/chroma-core/chroma
   tag: latest
   pullPolicy: IfNotPresent
 
 # Resource Limits and Requests
 resources:
   limits:
-    cpu: "2000m"
-    memory: "2048Mi"
-  requests:
     cpu: "1000m"
     memory: "1024Mi"
+  requests:
+    cpu: "500m"
+    memory: "512Mi"
 
 # Persistent Storage Configuration
 persistence:
   enabled: true
   accessModes:
     - ReadWriteOnce
-  size: 10Gi
+  size: 5Gi
   storageClassName: "standard"
 
 # Ingress Configuration
@@ -35,16 +35,26 @@ ingress:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
   host: localhost
-  path: /jupyterhub
+  path: /chromadb
 
 # Environment Variables
 env:
-  - name: JUPYTERHUB_PORT
+  - name: CHROMA_SERVER_HOST
+    value: "0.0.0.0"
+  - name: CHROMA_SERVER_PORT
     value: "8000"
-  - name: JUPYTERHUB_CONFIG
-    value: "/srv/jupyterhub/jupyterhub_config.py"
+  - name: CHROMA_DB_PATH
+    value: "/data"
 
 # Volume Mounts
 volumeMounts:
-  - name: jupyterhub-data
-    mountPath: /srv/jupyterhub
+  - name: chroma-data
+    mountPath: /data
+
+# Node Selector, Tolerations, and Affinity (optional)
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Extra Configuration (Optional for Debugging or Logs)
+extraArgs: []
