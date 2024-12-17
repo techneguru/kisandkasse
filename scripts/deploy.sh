@@ -83,7 +83,50 @@ git clone https://github.com/techneguru/kisandkasse.git /tmp/kisandkasse
 helm install code-server /tmp/kisandkasse/charts/code-server --namespace default
 helm install ollama /tmp/kisandkasse/charts/ollama --namespace default
 helm install jupyterhub /tmp/kisandkasse/charts/jupyterhub --namespace default
-
+echo "Setter opp lokal Ingress-konfigurasjon..."
+cat <<EOF | kubectl apply -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kisandkasse-ingress
+  namespace: default
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+spec:
+  rules:
+  - host: localhost
+    http:
+      paths:
+      - path: /code-server
+        pathType: Prefix
+        backend:
+          service:
+            name: code-server
+            port:
+              number: 8080
+      - path: /jupyterhub
+        pathType: Prefix
+        backend:
+          service:
+            name: jupyterhub
+            port:
+              number: 8000
+      - path: /flowise
+        pathType: Prefix
+        backend:
+          service:
+            name: flowise
+            port:
+              number: 3000
+      - path: /ollama
+        pathType: Prefix
+        backend:
+          service:
+            name: ollama
+            port:
+              number: 11434
+EOF
 echo "Setter opp grunnleggende RBAC for utviklere..."
 for i in {1..3}; do
     kubectl create namespace utvikler$i

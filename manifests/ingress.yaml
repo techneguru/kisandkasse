@@ -2,31 +2,40 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: kisandkasse-ingress
+  namespace: default
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
   rules:
-    - host: tag.kisandkasse
-      http:
-        paths:
-          - path: /code-server
-            pathType: Prefix
-            backend:
-              service:
-                name: code-server
-                port:
-                  number: 8080
-          - path: /jupyterhub
-            pathType: Prefix
-            backend:
-              service:
-                name: jupyterhub
-                port:
-                  number: 8000
-          - path: /ollama
-            pathType: Prefix
-            backend:
-              service:
-                name: ollama
-                port:
-                  number: 11434
+  - host: localhost
+    http:
+      paths:
+      - path: /code-server
+        pathType: Prefix
+        backend:
+          service:
+            name: code-server
+            port:
+              number: 8080
+      - path: /jupyterhub
+        pathType: Prefix
+        backend:
+          service:
+            name: jupyterhub
+            port:
+              number: 8000
+      - path: /flowise
+        pathType: Prefix
+        backend:
+          service:
+            name: flowise
+            port:
+              number: 3000
+      - path: /ollama
+        pathType: Prefix
+        backend:
+          service:
+            name: ollama
+            port:
+              number: 11434
