@@ -1,58 +1,59 @@
 #!/bin/bash
-# Grunnleggende systemforberedelser for KI-miljø med brukeropprettelse, NFS og tjenesteoppsett
+# Grunnleggende systemforberedelser for KI-miljø med Kubernetes, Docker, NFS og Helm
 
 set -e  # Stopp skriptet ved feil
 trap 'echo "Feil på linje $LINENO"; exit 1' ERR
 
+# Oppdater system og installer grunnleggende pakker
 echo "Oppdaterer systemet og installerer nødvendige pakker..."
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release git nfs-kernel-server
+sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release git nfs-kernel-server conntrack containerd
 
-# Docker-installasjon
+# Deaktiver Swap (påkrevd for Kubernetes)
+echo "Deaktiverer swap..."
+sudo swapoff -a
+sudo sed -i '/ swap / s/^/#/' /etc/fstab
+
+# Konfigurer Containerd
+echo "Konfigurerer Containerd..."
+sudo mkdir -p /etc/containerd
+containerd config default | sudo tee /etc/containerd/config.toml
+sudo systemctl restart containerd
+
+# Installer Docker
 echo "Installerer Docker..."
 curl -fsSL https://get.docker.com | bash
 sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
-# Korrigerer Kubernetes repository for Ubuntu 24.04 (midlertidig med 'jammy')
-echo "Legger til Kubernetes repository..."
-sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl
-sudo mkdir -p /etc/apt/keyrings
-curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# Kubernetes-installasjon via Snap
+echo "Installerer Kubernetes via Snap..."
+sudo snap install kubeadm --classic
+sudo snap install kubectl --classic
+sudo snap install kubelet --classic
 
-# Installerer Kubernetes-pakker
-echo "Installerer kubeadm, kubelet og kubectl..."
-sudo apt update
-sudo apt install -y kubeadm kubelet kubectl
-sudo apt-mark hold kubeadm kubelet kubectl
-sudo systemctl enable kubelet
+# Aktiver kubelet service
+echo "Aktiverer kubelet service..."
+sudo systemctl enable snap.kubelet.daemon
+sudo systemctl start snap.kubelet.daemon
 
-# NVIDIA-driver og toolkit
-echo "Installerer NVIDIA-driver og toolkit..."
-sudo apt install -y nvidia-driver-535
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/ubuntu20.04/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
-sudo apt update && sudo apt install -y nvidia-docker2
-sudo systemctl restart docker
+# Verifiser Kubernetes installasjon
+echo "Verifiserer Kubernetes versjoner..."
+kubeadm version
+kubectl version --client
 
-echo "Validerer NVIDIA-driver..."
-nvidia-smi
-
-# Helm-installasjon
+# Installer Helm via Snap
 echo "Installerer Helm..."
-curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
-sudo apt-get install apt-transport-https --yes
-echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
-sudo apt update && sudo apt install helm -y
+sudo snap install helm --classic
 
-# Kubernetes-init og Flannel-nettverk
+# Kubernetes-init
 echo "Initialiserer Kubernetes-klyngen..."
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
+# Nettverksplugin - Flannel
 echo "Setter opp Kubernetes Flannel-nettverk..."
 kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 
@@ -60,26 +61,12 @@ kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Doc
 echo "Installerer NGINX Ingress Controller..."
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
 
-# Oppretter brukere og roller
+# Opprett brukere og roller
 echo "Oppretter brukere: kiadmin, instruktør, utvikler1-3..."
-sudo useradd -m -s /bin/bash kiadmin
-echo "kiadmin:kiadmin" | sudo chpasswd
-sudo usermod -aG sudo kiadmin
-
-sudo useradd -m -s /bin/bash instruktør
-echo "instruktør:instruktør" | sudo chpasswd
-
-for i in {1..3}; do
-    sudo useradd -m -s /bin/bash utvikler$i
-    echo "utvikler$i:utvikler$i" | sudo chpasswd
-    sudo usermod -aG docker utvikler$i
-done
-
-# RBAC-roller
-echo "Setter opp grunnleggende RBAC for utviklere..."
-for i in {1..3}; do
-    kubectl create namespace utvikler$i
-    kubectl create rolebinding utvikler${i}-role --role=edit --user=utvikler$i --namespace=utvikler$i
+for user in kiadmin instruktør utvikler1 utvikler2 utvikler3; do
+    sudo useradd -m -s /bin/bash $user || true
+    echo "$user:$user" | sudo chpasswd
+    sudo usermod -aG docker $user || true
 done
 
 # NFS-lagring
@@ -93,29 +80,20 @@ echo "/mnt/nfs-share *(rw,sync,no_subtree_check)" | sudo tee /etc/exports
 sudo exportfs -a
 sudo systemctl restart nfs-kernel-server
 
-# Overvåkning og logging
-echo "Installerer Grafana, Prometheus og Loki..."
-helm repo add grafana https://grafana.github.io/helm-charts
-helm repo add nvidia https://nvidia.github.io/dcgm-exporter
-helm repo update
-helm install prometheus grafana/kube-prometheus-stack --namespace monitoring --create-namespace
-helm install loki grafana/loki-stack --namespace logging --create-namespace
-helm install nvidia-dcgm-exporter nvidia/dcgm-exporter --namespace monitoring
-
-# Tjenester via Helm
+# Installer tjenester via Helm
 echo "Kloner og deployer tjenester fra GitHub-repo..."
-git clone https://github.com/techneguru/kisandkasse.git /tmp/kisandkasse
+git clone https://github.com/techneguru/kisandkasse.git /tmp/kisandkasse || true
 helm install code-server /tmp/kisandkasse/charts/code-server --namespace default
 helm install ollama /tmp/kisandkasse/charts/ollama --namespace default
 helm install jupyterhub /tmp/kisandkasse/charts/jupyterhub --namespace default
 
 # Installer LangFlow
-echo "=== Installerer LangFlow... ==="
+echo "Installerer LangFlow..."
 helm repo add langflow https://langflow.github.io/helm-charts
 helm repo update
 helm install langflow langflow/langflow --namespace default
 
-# Lokal ingress-konfigurasjon
+# Oppsett for ingress
 echo "Setter opp Ingress for tjenester..."
 cat <<EOF | kubectl apply -f -
 apiVersion: networking.k8s.io/v1
@@ -160,9 +138,11 @@ spec:
               number: 11434
 EOF
 
+# Installer Flowise Docker container
 echo "Installerer Flowise..."
-sudo docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest
+sudo docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest || true
 
+# Verifisering
 echo "Validerer Kubernetes pods..."
 kubectl get pods --all-namespaces
 
