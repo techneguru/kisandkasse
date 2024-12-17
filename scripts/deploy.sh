@@ -22,25 +22,28 @@ sudo systemctl restart containerd
 
 # Installer Docker
 echo "Installerer Docker..."
-curl -fsSL https://get.docker.com | bash
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt-get update && sudo apt-get install -y docker-ce
 sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
-# Kubernetes-installasjon via Snap
-echo "Installerer Kubernetes via Snap..."
-sudo snap install kubeadm --classic
-sudo snap install kubectl --classic
-sudo snap install kubelet --classic
-
-# Aktiver kubelet service
-echo "Aktiverer kubelet service..."
-sudo systemctl enable snap.kubelet.daemon
-sudo systemctl start snap.kubelet.daemon
-
-# Verifiser Kubernetes installasjon
-echo "Verifiserer Kubernetes versjoner..."
-kubeadm version
-kubectl version --client
+# Kubernetes-installasjon (APT med fallback til Snap)
+echo "Legger til Kubernetes repository..."
+curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-jammy main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+if sudo apt-get update; then
+    sudo apt-get install -y kubeadm kubelet kubectl
+    sudo apt-mark hold kubeadm kubelet kubectl
+    sudo systemctl enable kubelet
+else
+    echo "APT Kubernetes repository feilet, bytter til Snap..."
+    sudo snap install kubeadm --classic
+    sudo snap install kubectl --classic
+    sudo snap install kubelet --classic
+    sudo systemctl enable snap.kubelet.daemon
+    sudo systemctl start snap.kubelet.daemon
+fi
 
 # Installer Helm via Snap
 echo "Installerer Helm..."
@@ -86,11 +89,6 @@ git clone https://github.com/techneguru/kisandkasse.git /tmp/kisandkasse || true
 helm install code-server /tmp/kisandkasse/charts/code-server --namespace default
 helm install ollama /tmp/kisandkasse/charts/ollama --namespace default
 helm install jupyterhub /tmp/kisandkasse/charts/jupyterhub --namespace default
-
-# Installer LangFlow
-echo "Installerer LangFlow..."
-helm repo add langflow https://langflow.github.io/helm-charts
-helm repo update
 helm install langflow langflow/langflow --namespace default
 
 # Oppsett for ingress
