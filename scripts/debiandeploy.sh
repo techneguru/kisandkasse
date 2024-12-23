@@ -18,8 +18,10 @@ sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
 # Konfigurer Containerd
 echo "Konfigurerer Containerd..."
-sudo mkdir -p /etc/containerd
-containerd config default | sudo tee /etc/containerd/config.toml
+if [ -f /etc/containerd/config.toml ]; then
+    sudo cp /etc/containerd/config.toml /etc/containerd/config.toml.bak
+fi
+containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
 sudo systemctl restart containerd
 
 # Installer Docker
