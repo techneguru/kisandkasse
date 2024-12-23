@@ -18,11 +18,15 @@ sudo sed -i '/ swap / s/^/#/' /etc/fstab
 
 # Konfigurer Containerd
 echo "Konfigurerer Containerd..."
-if [ -f /etc/containerd/config.toml ]; then
-    sudo cp /etc/containerd/config.toml /etc/containerd/config.toml.bak
-fi
-containerd config default | sudo tee /etc/containerd/config.toml > /dev/null
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml > /dev/null 2>&1
+
+# Endre konfigurasjonen for Kubernetes (for å støtte systemd cgroups)
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+
+# Start containerd på nytt med den oppdaterte konfigurasjonen
 sudo systemctl restart containerd
+
 
 # Installer Docker
 echo "Installerer Docker..."
