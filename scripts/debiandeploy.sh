@@ -2,7 +2,9 @@
 # Grunnleggende systemforberedelser for KI-miljø med Kubernetes, Docker, NFS, Helm, Grafana og Portainer (Debian-versjon)
 
 set -e  # Stopp skriptet ved feil
-trap 'echo "Feil på linje $LINENO"; exit 1' ERR
+trap 'echo "Feil på linje $LINENO" | tee -a install.log; exit 1' ERR
+
+exec > >(tee -i install.log) 2>&1  # Logg all output
 
 # Oppdater system og installer grunnleggende pakker
 echo "Oppdaterer systemet og installerer nødvendige pakker..."
@@ -22,6 +24,7 @@ sudo systemctl restart containerd
 
 # Installer Docker
 echo "Installerer Docker..."
+sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list
 sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io
@@ -36,17 +39,18 @@ sudo docker run -d -p 8000:8000 -p 9443:9443 --name portainer --restart=always -
 
 # Kubernetes-installasjon med fast versjon
 echo "Legger til Kubernetes repository med fast versjon..."
-sudo mkdir -p /etc/apt/keyrings
-sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+sudo curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.29/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
 sudo apt-get update && sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable kubelet
 sudo systemctl start kubelet
 
-# Installer Helm via Snap
+# Installer Helm
 echo "Installerer Helm..."
-sudo snap install helm --classic
+curl https://baltocdn.com/helm/signing.asc | sudo gpg --dearmor -o /etc/apt/keyrings/helm.gpg
+echo "deb [signed-by=/etc/apt/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update && sudo apt-get install -y helm
 
 # Kubernetes-init
 echo "Initialiserer Kubernetes-klyngen..."
@@ -154,5 +158,8 @@ sudo docker run -d -p 3000:3000 --name flowise flowiseai/flowise:latest || true
 # Verifisering
 echo "Validerer Kubernetes pods..."
 kubectl get pods --all-namespaces
+kubectl get svc --all-namespaces
+kubectl get nodes
+kubectl describe pods --all-namespaces
 
 echo "Systemoppsett fullført. Start maskinen på nytt for å aktivere alle endringer."
