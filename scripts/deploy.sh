@@ -28,13 +28,13 @@ sudo apt-get update && sudo apt-get install -y docker-ce
 sudo usermod -aG docker $USER
 sudo systemctl enable docker
 
-# Kubernetes-installasjon (bruker spesifikk versjon for kompatibilitet)
+# Kubernetes-installasjon med fast versjon
 echo "Legger til Kubernetes repository med fast versjon..."
-KUBERNETES_VERSION="1.29.0"
-curl -fsSLo /etc/apt/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-sudo apt-get update && sudo apt-get install -y kubeadm=$KUBERNETES_VERSION-00 kubelet=$KUBERNETES_VERSION-00 kubectl=$KUBERNETES_VERSION-00
-sudo apt-mark hold kubeadm kubelet kubectl
+sudo mkdir -p /etc/apt/keyrings
+sudo curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.29/deb/ /" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update && sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
 sudo systemctl enable kubelet
 
 # Installer Helm via Snap
@@ -44,6 +44,11 @@ sudo snap install helm --classic
 # Kubernetes-init
 echo "Initialiserer Kubernetes-klyngen..."
 sudo kubeadm reset -f
+sudo iptables -F
+sudo iptables -t nat -F
+sudo iptables -t mangle -F
+sudo iptables -X
+sudo systemctl restart kubelet
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
